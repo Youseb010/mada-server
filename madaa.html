@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Madaa Chat - منصة الفيديوهات</title>
+<style>
+/* مبسّط + responsive */
+:root{
+  --red:#FF0000;
+  --muted:#606060;
+  --bg:#f9f9f9;
+  --card:#fff;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+body{font-family:Arial, sans-serif;background:var(--bg);margin:0;color:#111}
+header{background:var(--red);color:#fff;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+.logo{font-size:20px;font-weight:700}
+.search-bar{display:flex;flex:1;max-width:720px;margin:0 12px}
+.search-bar input{flex:1;padding:8px 12px;border-radius:20px 0 0 20px;border:0;font-size:15px}
+.search-bar button{padding:8px 12px;border-radius:0 20px 20px 0;border:0;background:#fff;color:var(--red);font-weight:bold;cursor:pointer}
+.user-actions{display:flex;gap:8px;align-items:center}
+.btn{background:transparent;color:#fff;border:1px solid #fff;padding:7px 12px;border-radius:20px;cursor:pointer;font-weight:700}
+.user-avatar{width:38px;height:38px;border-radius:50%;background:#ddd}
+main{display:flex;gap:18px;padding:18px;align-items:flex-start}
+.sidebar{width:220px}
+.sidebar-menu{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.sidebar-menu li{background:var(--card);padding:10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.sidebar-menu li.active{box-shadow:0 2px 6px rgba(0,0,0,0.08);font-weight:700}
+.content{flex:1}
+.channel-list{display:flex;gap:12px;margin-bottom:16px;overflow-x:auto;padding-bottom:6px}
+.channel-item{min-width:80px;text-align:center;cursor:pointer}
+.channel-item-avatar{width:60px;height:60px;border-radius:50%;background-size:cover;background-position:center;margin:auto}
+.videos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.video-card{background:var(--card);border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.06);cursor:pointer;position:relative}
+.thumbnail{width:100%;height:160px;background:#ddd;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.thumbnail img, .thumbnail video{width:100%;height:100%;object-fit:cover}
+.video-info{padding:12px}
+.video-title{font-weight:700;margin-bottom:8px;line-height:1.2}
+.channel-info{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+.meta-row{display:flex;gap:10px;color:var(--muted);font-size:13px;margin-top:8px;align-items:center}
+.actions-row{display:flex;gap:8px;margin-top:10px}
+.action-btn{padding:6px 8px;border-radius:6px;border:1px solid #eee;background:#fafafa;cursor:pointer;font-weight:600}
+.no-videos{padding:30px;background:var(--card);border-radius:8px;text-align:center;color:var(--muted)}
+
+/* modal basic */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:12px}
+.modal .box{background:var(--card);padding:18px;border-radius:8px;width:700px;max-width:100%}
+
+/* responsive */
+@media(max-width:1000px){.videos-grid{grid-template-columns:repeat(2,1fr)}.sidebar{display:none}header{flex-wrap:wrap}}
+@media(max-width:600px){.videos-grid{grid-template-columns:1fr}.search-bar{order:3;width:100%;margin-top:8px}.user-actions{order:2;margin-left:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Madaa Chat</div>
+
+  <div class="search-bar">
+    <input id="searchInput" placeholder="ابحث في Madaa Chat..." />
+    <button id="searchBtn">بحث</button>
+  </div>
+
+  <div class="user-actions">
+    <button class="btn" id="uploadBtn">رفع فيديو</button>
+    <button class="btn" id="createChannelBtn">إنشاء قناة</button>
+    <div class="user-avatar"></div>
+  </div>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <ul class="sidebar-menu">
+      <li data-view="home" class="active">🏠 الصفحة الرئيسية</li>
+      <li data-view="popular">🔥 الأكثر مشاهدة</li>
+      <li data-view="recent">⏳ مقاطع حديثة</li>
+      <li data-view="liked">👍 مقاطع أعجبتني</li>
+      <li data-view="saved">📚 المحفوظات</li>
+      <li data-view="settings">⚙️ الإعدادات</li>
+    </ul>
+  </aside>
+
+  <section class="content">
+    <div class="channel-list" id="channelList"></div>
+    <div id="videosContainer"></div>
+  </section>
+</main>
+
+<!-- Upload Modal -->
+<div class="modal" id="uploadModal">
+  <div class="box">
+    <h3>رفع فيديو جديد</h3>
+    <form id="uploadForm">
+      <div style="margin-top:12px">
+        <label>عنوان</label>
+        <input id="videoTitle" required style="width:100%;padding:8px;margin-top:6px" />
+      </div>
+      <div style="margin-top:8px">
+        <label>وصف</label>
+        <textarea id="videoDescription" style="width:100%;padding:8px;margin-top:6px"></textarea>
+      </div>
+      <div style="margin-top:8px">
+        <label>القناة</label>
+        <select id="videoChannel" style="width:100%;padding:8px;margin-top:6px"></select>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <div style="flex:1">
+          <label>ملف الفيديو (mp4، ...)</label>
+          <input id="videoFile" type="file" accept="video/*" required />
+        </div>
+        <div style="width:220px">
+          <label>صورة مصغّرة (اختياري)</label>
+          <input id="thumbnailFile" type="file" accept="image/*" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" id="cancelUpload" class="action-btn">إلغاء</button>
+        <button type="submit" class="action-btn">رفع إلى السحابة</button>
+      </div>
+
+      <div id="uploadStatus" style="margin-top:10px;color:var(--muted)"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Video Viewer Modal -->
+<div class="modal" id="videoModal">
+  <div class="box" style="max-width:900px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 id="modalTitle">عنوان الفيديو</h3>
+      <button id="closeVideo" class="action-btn">إغلاق</button>
+    </div>
+    <div id="playerContainer" style="margin-top:10px;background:#000;height:420px;display:flex;align-items:center;justify-content:center">
+      <!-- video element will be injected -->
+    </div>
+    <div style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div id="modalChannelAvatar" style="width:56px;height:56px;border-radius:50%;background-size:cover"></div>
+          <div>
+            <div id="modalChannelName" style="font-weight:700"></div>
+            <div id="publishDate" style="color:var(--muted);font-size:13px"></div>
+          </div>
+        </div>
+        <div>
+          <button id="likeBtn" class="action-btn">👍 <span id="likeCount">0</span></button>
+          <button id="dislikeBtn" class="action-btn">👎 <span id="dislikeCount">0</span></button>
+        </div>
+      </div>
+
+      <p id="modalDesc" style="color:var(--muted);margin-top:12px"></p>
+
+      <div style="margin-top:14px">
+        <strong>التعليقات (<span id="commentsCount">0</span>)</strong>
+        <form id="commentForm" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          <input id="commentAuthor" placeholder="اسمك" required style="padding:8px" />
+          <textarea id="commentText" placeholder="أضف تعليقاً..." required style="padding:8px"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="submitComment" class="action-btn" type="submit">نشر</button>
+          </div>
+        </form>
+        <div id="commentsList" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  FRONTEND CONFIGURATION
+  - API_BASE: رابط الخادم (مثلاً http://localhost:4000)
+  - CLOUDINARY_CLOUD: drj4laqga (مقدّم)
+  - CLOUDINARY_UPLOAD_PRESET: mada_upload (مقدّم)
+*/
+const API_BASE = 'http://localhost:4000'; // ضع هنا رابط الـ API بعد نشره
+const CLOUDINARY_CLOUD = 'drj4laqga';
+const CLOUDINARY_UPLOAD_PRESET = 'mada_upload';
+
+// state
+let appState = { channels: [], videos: [], currentView: 'home' };
+
+// DOM
+const channelList = document.getElementById('channelList');
+const videosContainer = document.getElementById('videosContainer');
+const uploadModal = document.getElementById('uploadModal');
+const uploadBtn = document.getElementById('uploadBtn');
+const createChannelBtn = document.getElementById('createChannelBtn');
+const uploadForm = document.getElementById('uploadForm');
+const videoChannel = document.getElementById('videoChannel');
+const uploadStatus = document.getElementById('uploadStatus');
+const videoModal = document.getElementById('videoModal');
+const playerContainer = document.getElementById('playerContainer');
+const modalTitle = document.getElementById('modalTitle');
+const modalDesc = document.getElementById('modalDesc');
+const modalChannelAvatar = document.getElementById('modalChannelAvatar');
+const modalChannelName = document.getElementById('modalChannelName');
+const publishDateEl = document.getElementById('publishDate');
+const likeBtn = document.getElementById('likeBtn');
+const dislikeBtn = document.getElementById('dislikeBtn');
+const likeCountEl = document.getElementById('likeCount');
+const dislikeCountEl = document.getElementById('dislikeCount');
+const commentsList = document.getElementById('commentsList');
+const commentsCountEl = document.getElementById('commentsCount');
+const commentForm = document.getElementById('commentForm');
+
+// helpers
+async function apiGET(path){ const r = await fetch(API_BASE + path); return await r.json(); }
+async function apiPOST(path, body){ const r = await fetch(API_BASE + path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return await r.json(); }
+
+// initial load
+async function loadData(){
+  try{
+    const data = await apiGET('/api/init'); // returns {channels, videos}
+    appState = data;
+    renderChannels();
+    renderVideos();
+  }catch(err){
+    console.error('Cannot load data from API', err);
+    // fallback: empty UI
+    appState = {channels:[], videos:[]};
+    renderChannels();
+    renderVideos();
+  }
+}
+
+// render channels row
+function renderChannels(){
+  channelList.innerHTML = '';
+  appState.channels.forEach(ch=>{
+    const el = document.createElement('div');
+    el.className = 'channel-item';
+    el.innerHTML = `<div class="channel-item-avatar" style="background-image:url('${ch.image||''}');"></div><div style="font-size:13px">${ch.name}</div>`;
+    el.addEventListener('click', ()=>{ showChannel(ch.id); });
+    channelList.appendChild(el);
+
+    // add option to select
+    const opt = document.createElement('option');
+    opt.value = ch.id; opt.textContent = ch.name; videoChannel.appendChild(opt);
+  });
+
+  // add create quick channel
+  const create = document.createElement('div');
+  create.className = 'channel-item';
+  create.innerHTML = `<div style="width:60px;height:60px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center">+</div><div style="font-size:13px">قناة جديدة</div>`;
+  create.addEventListener('click', ()=> openCreateChannelModal());
+  channelList.appendChild(create);
+}
+
+// render videos grid (filtered by view if needed)
+function renderVideos(filterFn){
+  const list = filterFn ? appState.videos.filter(filterFn) : appState.videos;
+  if(!list.length){
+    videosContainer.innerHTML = `<div class="no-videos"><h3>لا توجد فيديوهات</h3><p>قم برفع أول فيديو!</p></div>`;
+    return;
+  }
+
+  const grid = document.createElement('div'); grid.className='videos-grid';
+  list.forEach(v=>{
+    const ch = appState.channels.find(c=>c.id===v.channelId) || {name:'غير معروف', image:''};
+    const card = document.createElement('div'); card.className='video-card';
+    card.innerHTML = `
+      <div class="thumbnail">${v.videoUrl?`<img src="${v.thumbnail}" />`:`<img src="${v.thumbnail}" />`}</div>
+      <div class="video-info">
+        <div class="video-title">${v.title}</div>
+        <div class="channel-info">
+          <div style="width:36px;height:36px;border-radius:50%;background-image:url('${ch.image||''}');background-size:cover;background-position:center"></div>
+          <div style="font-size:13px;color:var(--muted)">${ch.name}</div>
+        </div>
+        <div class="meta-row">
+          <div>👁️ ${v.views||0}</div>
+          <div>💬 ${v.comments?.length||0}</div>
+          <div>👍 ${v.likes||0}</div>
+        </div>
+      </div>
+    `;
+    card.addEventListener('click', ()=> openVideo(v.id));
+    grid.appendChild(card);
+  });
+
+  videosContainer.innerHTML = '';
+  videosContainer.appendChild(grid);
+}
+
+// show channel (filter)
+function showChannel(channelId){
+  renderVideos(v=>v.channelId===channelId);
+}
+
+// open upload modal
+uploadBtn.addEventListener('click', ()=>{ uploadModal.style.display='flex'; });
+document.getElementById('cancelUpload').addEventListener('click', ()=>{ uploadModal.style.display='none'; });
+
+// upload form submit: upload files to Cloudinary unsigned, then POST metadata to API
+uploadForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  uploadStatus.textContent = 'جاري الرفع إلى Cloudinary...';
+  const title = document.getElementById('videoTitle').value.trim();
+  const description = document.getElementById('videoDescription').value.trim();
+  const chId = parseInt(document.getElementById('videoChannel').value);
+  const videoFile = document.getElementById('videoFile').files[0];
+  const thumbnailFile = document.getElementById('thumbnailFile').files[0];
+
+  if(!videoFile){ alert('اختر ملف فيديو'); return; }
+
+  try{
+    // 1) upload video
+    const videoForm = new FormData();
+    videoForm.append('file', videoFile);
+    videoForm.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    // you can tag with 'madaa_video' for easier search in Cloudinary console
+    videoForm.append('tags', 'madaa_video');
+
+    const uploadVideoRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/video/upload`, {
+      method:'POST', body: videoForm
+    });
+    const videoData = await uploadVideoRes.json();
+    // 2) upload thumbnail if provided, else try to generate from video via server later or use videoData.thumbnail
+    let thumbUrl = '';
+    if(thumbnailFile){
+      const thForm = new FormData();
+      thForm.append('file', thumbnailFile);
+      thForm.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      thForm.append('tags','madaa_thumbnail');
+      const upThumb = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {method:'POST', body:thForm});
+      const thumbData = await upThumb.json();
+      thumbUrl = thumbData.secure_url;
+    } else {
+      // Cloudinary often provides a "thumbnail_url" or use the video poster URL
+      thumbUrl = videoData.secure_url + (videoData.format ? `.jpg` : '');
+      // Note: you may want server-side thumbnail generation for better results
+    }
+
+    uploadStatus.textContent = 'جاري حفظ بيانات الفيديو في السحابة...';
+
+    // 3) send metadata to backend API
+    const meta = {
+      cloudinary_public_id: videoData.public_id,
+      video_url: videoData.secure_url,
+      thumbnail: thumbUrl,
+      title, description,
+      channelId: chId,
+      duration: videoData.duration || null
+    };
+
+    const saved = await apiPOST('/api/videos', meta); // backend will return created video object
+    uploadStatus.textContent = 'تم رفع الفيديو بنجاح!';
+    // refresh data
+    await loadData();
+    uploadModal.style.display='none';
+    uploadForm.reset();
+    setTimeout(()=> uploadStatus.textContent = '', 2000);
+  }catch(err){
+    console.error(err);
+    uploadStatus.textContent = 'حدث خطأ أثناء الرفع. تحقق من الكونسول.';
+  }
+});
+
+// open video viewer
+async function openVideo(videoId){
+  const res = await apiGET('/api/videos/' + videoId);
+  if(!res || !res.video) return;
+  const v = res.video;
+  // increase views on server
+  await apiPOST(`/api/videos/${videoId}/view`, {});
+  // update UI
+  modalTitle.textContent = v.title;
+  modalDesc.textContent = v.description || '';
+  modalChannelName.textContent = (appState.channels.find(c=>c.id===v.channelId)||{}).name || 'قناة';
+  modalChannelAvatar.style.backgroundImage = `url('${(appState.channels.find(c=>c.id===v.channelId)||{}).image||''}')`;
+  publishDateEl.textContent = v.publishedAt ? new Date(v.publishedAt).toLocaleString() : '';
+  likeCountEl.textContent = v.likes||0;
+  dislikeCountEl.textContent = v.dislikes||0;
+  commentsCountEl.textContent = v.comments?.length||0;
+
+  // player
+  playerContainer.innerHTML = '';
+  const videoEl = document.createElement('video');
+  videoEl.src = v.video_url;
+  videoEl.controls = true;
+  videoEl.style.width='100%';
+  videoEl.style.height='100%';
+  playerContainer.appendChild(videoEl);
+
+  // render comments
+  renderCommentsList(v.comments || []);
+
+  // attach like/dislike
+  likeBtn.onclick = async ()=>{ await apiPOST(`/api/videos/${videoId}/like`, {}); const updated = await apiGET('/api/videos/' + videoId); likeCountEl.textContent = updated.video.likes; };
+  dislikeBtn.onclick = async ()=>{ await apiPOST(`/api/videos/${videoId}/dislike`, {}); const updated = await apiGET('/api/videos/' + videoId); dislikeCountEl.textContent = updated.video.dislikes; };
+
+  // comment submit
+  commentForm.onsubmit = async (e)=>{ e.preventDefault(); const author = document.getElementById('commentAuthor').value.trim(); const text = document.getElementById('commentText').value.trim(); if(!author||!text) return; await apiPOST(`/api/videos/${videoId}/comment`, {author,text}); const updated = await apiGET('/api/videos/' + videoId); renderCommentsList(updated.video.comments); commentsCountEl.textContent = updated.video.comments.length; commentForm.reset(); };
+
+  videoModal.style.display='flex';
+  // refresh overall lists
+  await loadData();
+}
+
+// render comments into modal
+function renderCommentsList(list){
+  commentsList.innerHTML = '';
+  (list || []).slice().reverse().forEach(c=>{
+    const div = document.createElement('div');
+    div.style.padding='8px'; div.style.borderBottom='1px solid #eee';
+    div.innerHTML = `<div style="font-weight:700">${escapeHtml(c.author)} <span style="color:var(--muted);font-weight:400;font-size:12px">${new Date(c.date).toLocaleString()}</span></div><div style="margin-top:6px">${escapeHtml(c.text)}</div>`;
+    commentsList.appendChild(div);
+  });
+}
+
+function escapeHtml(s){ return (s+'').replace(/[&<>"'`]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[m]; }); }
+
+// close modal
+document.getElementById('closeVideo').addEventListener('click', ()=>{ videoModal.style.display='none'; playerContainer.innerHTML=''; });
+
+// channel creation (simple prompt for demo)
+function openCreateChannelModal(){
+  const name = prompt('اسم القناة:');
+  if(!name) return;
+  // for simplicity create channel with placeholder image; ideally upload image via Cloudinary same as videos
+  apiPOST('/api/channels', {name, image: ''}).then(()=> loadData());
+}
+
+// search
+document.getElementById('searchBtn').addEventListener('click', async ()=>{
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q) return loadData();
+  const res = await apiGET('/api/search?q=' + encodeURIComponent(q));
+  if(res && res.videos) renderVideos(v=> res.videos.some(rv=>rv.id===v.id));
+});
+
+// sidebar filters (home/popular/recent/liked/saved/settings)
+document.querySelectorAll('.sidebar-menu li').forEach(li=>{
+  li.addEventListener('click', ()=>{
+    document.querySelectorAll('.sidebar-menu li').forEach(x=>x.classList.remove('active'));
+    li.classList.add('active');
+    const view = li.getAttribute('data-view');
+    if(view === 'home'){ renderVideos(); }
+    else if(view === 'popular'){ renderVideos(v=>v.views >= 0 ? true : true); appState.videos.sort((a,b)=> (b.views||0)-(a.views||0)); renderVideos(); }
+    else if(view === 'recent'){ appState.videos.sort((a,b)=> new Date(b.publishedAt) - new Date(a.publishedAt)); renderVideos(); }
+    else if(view === 'liked'){ renderVideos(v=> (v.likes||0) > 0); }
+    else if(view === 'saved'){ /* implement saved per-user via localStorage or API */ alert('المحفوظات تستخدم لاحقاً'); }
+    else if(view === 'settings'){ alert('صفحة الإعدادات - اضافات مستقبلية'); }
+  });
+});
+
+// initial
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "channels": [
+    {
+      "id": 1,
+      "name": "Madaa",
+      "image": "",
+      "description": ""
+    },
+    {
+      "id": "p-1rQ5QPHswY_x85429SI",
+      "name": "Youseb",
+      "image": "",
+      "description": ""
+    }
+  ],
+  "videos": [
+    {
+      "id": "TZvtytPx6fzh-RPsHAcrJ",
+      "cloudinary_public_id": "ljljlh5hyg12ln4x6ssc",
+      "video_url": "https://res.cloudinary.com/drj4laqga/video/upload/v1754904576/ljljlh5hyg12ln4x6ssc.mp4",
+      "thumbnail": "https://res.cloudinary.com/drj4laqga/video/upload/v1754904576/ljljlh5hyg12ln4x6ssc.mp4.jpg",
+      "title": "yousebb",
+      "description": "testt",
+      "channelId": null,
+      "duration": 7.940998,
+      "views": 2,
+      "likes": 6,
+      "dislikes": 0,
+      "comments": [],
+      "publishedAt": "2025-08-11T09:29:36.613Z"
+    }
+  ]
+}
