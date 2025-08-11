@@ -7,8 +7,16 @@ const { nanoid } = require('nanoid');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+
+// ✅ هذا مهم جداً لحل مشكلة CORS
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type']
+}));
+
 app.use(bodyParser.json({limit:'10mb'}));
+
 
 const file = path.join(__dirname,'db.json');
 const adapter = new JSONFile(file);
